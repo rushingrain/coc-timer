@@ -14,7 +14,7 @@
         {% if slot.completed %}已完成{% else %}计算中…{% endif %}
       </small>
     </div>
-    <p class="snapshot">录入于 {{ slot.task.anchor_at | short_time }} · 当时游戏显示 {{ slot.task.remaining_seconds | game_duration }}</p>
+    <p class="snapshot">录入于 {{ slot.task.anchor_at | short_time }} · 游戏显示时间 <span data-game-countdown data-game-clock="{{ slot.game_clock | tojson | forceescape }}">{{ slot.game_remaining_seconds | game_display_duration }}</span></p>
   {% else %}
     <div class="result empty-result"><span>预计完成</span><strong>录入剩余时间后显示</strong></div>
   {% endif %}

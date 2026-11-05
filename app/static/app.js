@@ -1,5 +1,7 @@
 (() => {
   let pendingForms = null;
+  const dashboardClocks = new WeakMap();
+  const gameClocks = new WeakMap();
   const clockFormatter = new Intl.DateTimeFormat("zh-CN", {
     timeZone: "Asia/Shanghai",
     year: "numeric",
@@ -23,6 +25,53 @@
     return "还需 " + (days ? days + " 天 " : "") + String(hours).padStart(2, "0") + ":" + String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
   }
 
+  function formatGameDuration(milliseconds) {
+    if (milliseconds <= 0) return "已完成";
+    const totalMinutes = Math.floor(milliseconds / 60000);
+    const days = Math.floor(totalMinutes / 1440);
+    const hours = Math.floor(totalMinutes / 60) % 24;
+    const minutes = totalMinutes % 60;
+    const parts = [];
+    if (days) parts.push(days + " 天");
+    if (hours) parts.push(hours + " 小时");
+    if (minutes) parts.push(minutes + " 分钟");
+    return parts.length ? parts.join(" ") : "1 分钟";
+  }
+
+  function dashboardNow() {
+    const dashboard = document.getElementById("dashboard");
+    if (!dashboard) return Date.now();
+    if (!dashboardClocks.has(dashboard)) {
+      const serverNow = Date.parse(dashboard.dataset.serverNow);
+      dashboardClocks.set(dashboard, {
+        serverNow: Number.isNaN(serverNow) ? Date.now() : serverNow,
+        startedAt: performance.now(),
+      });
+    }
+    const clock = dashboardClocks.get(dashboard);
+    return clock.serverNow + performance.now() - clock.startedAt;
+  }
+
+  function gameRemaining(element, now) {
+    if (!gameClocks.has(element)) {
+      const clock = JSON.parse(element.dataset.gameClock);
+      clock.anchorAt = Date.parse(element.closest("#dashboard").dataset.serverNow);
+      clock.boosts = clock.boosts.map((boost) => ({
+        startsAt: Date.parse(boost.starts_at),
+        endsAt: Date.parse(boost.ends_at),
+        multiplier: boost.multiplier,
+      }));
+      gameClocks.set(element, clock);
+    }
+    const clock = gameClocks.get(element);
+    let remaining = clock.remaining_ms - Math.max(0, now - clock.anchorAt);
+    clock.boosts.forEach((boost) => {
+      const overlap = Math.max(0, Math.min(now, boost.endsAt) - Math.max(clock.anchorAt, boost.startsAt));
+      remaining -= overlap * (boost.multiplier - 1);
+    });
+    return Math.max(0, remaining);
+  }
+
   function formatChinaTime(milliseconds) {
     const pieces = Object.fromEntries(
       clockFormatter.formatToParts(new Date(milliseconds)).map((part) => [part.type, part.value]),
@@ -31,7 +80,10 @@
   }
 
   function tick() {
-    const now = Date.now();
+    const now = dashboardNow();
+    document.querySelectorAll("[data-game-countdown]").forEach((element) => {
+      element.textContent = formatGameDuration(gameRemaining(element, now));
+    });
     const upcoming = [];
     document.querySelectorAll("[data-countdown]").forEach((element) => {
       const finishAt = Date.parse(element.dataset.finishAt);

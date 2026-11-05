@@ -110,3 +110,38 @@ def calculate_finish(
         cursor = segment.ends_at
 
     return _advance(cursor, work_left, 1)
+
+
+def calculate_remaining(
+    anchor_at: datetime,
+    remaining_seconds: int,
+    segments: list[BoostSegment],
+    now: datetime,
+) -> float:
+    """Return remaining game work in seconds, retaining subsecond precision."""
+    if anchor_at.tzinfo is None or now.tzinfo is None:
+        raise ValueError("times must have timezones")
+    if remaining_seconds < 0:
+        raise ValueError("remaining_seconds must not be negative")
+    if now <= anchor_at:
+        return remaining_seconds
+
+    work_left = remaining_seconds * 1_000_000
+    work_left -= _microseconds(now - anchor_at)
+    previous_end: datetime | None = None
+    for segment in sorted(segments, key=lambda item: item.starts_at):
+        if segment.starts_at.tzinfo is None or segment.ends_at.tzinfo is None:
+            raise ValueError("boost times must have timezones")
+        if segment.ends_at <= anchor_at:
+            continue
+        if previous_end is not None and segment.starts_at < previous_end:
+            raise ValueError("boost segments must not overlap for one slot")
+        previous_end = segment.ends_at
+
+        active_start = max(anchor_at, segment.starts_at)
+        active_end = min(segment.ends_at, now)
+        if active_end > active_start:
+            # Normal speed is already included in the elapsed wall time.
+            work_left -= _microseconds(active_end - active_start) * (BOOSTS[segment.kind].multiplier - 1)
+
+    return max(0, work_left) / 1_000_000

@@ -11,7 +11,15 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from .domain import BOOST_LIST, BOOSTS, SLOT_LIST, SLOTS, BoostSegment, calculate_finish
+from .domain import (
+    BOOST_LIST,
+    BOOSTS,
+    SLOT_LIST,
+    SLOTS,
+    BoostSegment,
+    calculate_finish,
+    calculate_remaining,
+)
 from .repository import (
     clear_active_boosts,
     clear_task,
@@ -62,9 +70,17 @@ def game_duration(seconds: int) -> str:
     return " ".join(parts)
 
 
+def game_display_duration(seconds: float) -> str:
+    if seconds <= 0:
+        return "已完成"
+    minutes = int(seconds // 60)
+    return game_duration(minutes * 60) if minutes else "1 分钟"
+
+
 templates.env.filters["local_time"] = local_time
 templates.env.filters["short_time"] = short_time
 templates.env.filters["game_duration"] = game_duration
+templates.env.filters["game_display_duration"] = game_display_duration
 
 
 def dashboard_context(
@@ -96,11 +112,29 @@ def dashboard_context(
             if task is not None
             else None
         )
+        game_remaining = (
+            calculate_remaining(task.anchor_at, task.remaining_seconds, slot_segments, now)
+            if task is not None
+            else 0
+        )
         views.append(
             {
                 "definition": definition,
                 "task": task,
                 "finish_at": finish_at,
+                "game_remaining_seconds": game_remaining,
+                "game_clock": {
+                    "remaining_ms": game_remaining * 1000,
+                    "boosts": [
+                        {
+                            "starts_at": max(now, segment.starts_at).isoformat(),
+                            "ends_at": segment.ends_at.isoformat(),
+                            "multiplier": BOOSTS[segment.kind].multiplier,
+                        }
+                        for segment in slot_segments
+                        if segment.ends_at > now
+                    ],
+                },
                 "active_boost": active_boost,
                 "active_boost_name": BOOSTS[active_boost.kind].label
                 if active_boost

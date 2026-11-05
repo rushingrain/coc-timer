@@ -1,4 +1,4 @@
-<div id="dashboard">
+<div id="dashboard" data-server-now="{{ now.isoformat() }}">
   {% if message %}<div class="notice success" role="status">{{ message }}</div>{% endif %}
   <section class="summary" aria-label="总览">
     <div class="summary-main">
