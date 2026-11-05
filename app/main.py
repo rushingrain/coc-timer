@@ -1,5 +1,6 @@
 """FastAPI and HTMX interface for the completion-time calculator."""
 
+import sqlite3
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,6 +15,7 @@ from .domain import BOOST_LIST, BOOSTS, SLOT_LIST, SLOTS, BoostSegment, calculat
 from .repository import (
     clear_active_boosts,
     clear_task,
+    check_db,
     init_db,
     read_state,
     record_boost,
@@ -185,6 +187,15 @@ def parse_duration(days: str, hours: str, minutes: str, seconds: str) -> int:
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request) -> HTMLResponse:
     return render_dashboard(request)
+
+
+@app.get("/healthz", include_in_schema=False)
+def healthz() -> dict[str, str]:
+    try:
+        check_db()
+    except sqlite3.Error as error:
+        raise HTTPException(status_code=503, detail="database unavailable") from error
+    return {"status": "ok"}
 
 
 @app.get("/dashboard", response_class=HTMLResponse)

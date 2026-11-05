@@ -1,0 +1,18 @@
+[Unit]
+Description=Clash of Clans Timer
+After=network.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+StateDirectory=coc-timer
+WorkingDirectory=/opt/coc-timer
+Environment=COC_TIMER_DB=/var/lib/coc-timer/coc_timer.sqlite3
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/bash /opt/coc-timer/deploy/start.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

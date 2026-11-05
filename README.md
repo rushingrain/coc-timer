@@ -22,6 +22,34 @@ fan-made tool for Clash of Clans
 
 数据库默认保存在项目目录下的 data/coc_timer.sqlite3，停止服务不会清除已录入的数据；可以通过环境变量 COC_TIMER_DB 指定其他路径。
 
+## 云服务器部署（Ubuntu/Debian + systemd）
+
+推荐把代码放在 /opt/coc-timer，把数据库放在 /var/lib/coc-timer/coc_timer.sqlite3。两者分开后，更新代码或重建虚拟环境不会影响数据库。仓库提供了 [生产启动脚本](deploy/start.sh) 和 [systemd 服务配置](deploy/coc-timer.service)；如果采用其他代码目录，需要同步修改这两个文件中的绝对路径。
+
+先将项目源码部署到 /opt/coc-timer，确保部署账号对代码目录有写权限、服务用户对目录和虚拟环境有读取及执行权限，并确认服务器的 Python 不低于 3.11。虚拟环境需要在服务器上重新创建，不要复制本地的 .venv。然后执行：
+
+    cd /opt/coc-timer
+    python3 -m venv .venv
+    .venv/bin/python -m pip install -e .
+    sudo install -m 644 deploy/coc-timer.service /etc/systemd/system/coc-timer.service
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now coc-timer
+
+systemd 会自动创建服务所需的数据目录，并在开机时启动服务。生产启动脚本使用单个 Uvicorn 进程、监听本机 127.0.0.1:8000，不使用开发模式的自动重载。要从公网访问，应在前面配置反向代理和访问控制；当前单人版本尚无登录功能，不宜直接暴露 8000 端口。
+
+日常管理与检查：
+
+    systemctl is-active coc-timer                 # 快速查看是否运行，正常输出 active
+    systemctl status coc-timer --no-pager         # 查看进程状态和最近日志
+    curl -fsS http://127.0.0.1:8000/healthz       # 检查应用和数据库是否可访问
+    sudo systemctl restart coc-timer              # 更新代码后重启
+    sudo systemctl stop coc-timer                 # 停止服务
+    sudo systemctl start coc-timer                # 再次启动
+    journalctl -u coc-timer -n 100 --no-pager     # 查看最近 100 行日志
+    journalctl -u coc-timer -f                    # 实时跟踪日志
+
+若修改了服务配置文件，需重新执行 sudo install -m 644 deploy/coc-timer.service /etc/systemd/system/coc-timer.service 和 sudo systemctl daemon-reload，再重启服务。若修改了项目依赖，先在服务器运行 .venv/bin/python -m pip install -e .，再重启服务。
+
 ## 使用方法
 
 1. 如果游戏中已有加速生效，先在“加速道具”区选择“同步游戏中已生效的道具”，填写其当前剩余生效分钟和秒数。

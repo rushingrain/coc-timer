@@ -67,6 +67,11 @@ def init_db() -> None:
         connection.commit()
 
 
+def check_db() -> None:
+    with _connection() as connection:
+        connection.execute("SELECT 1 FROM tasks LIMIT 1").fetchone()
+
+
 def read_state(now: datetime) -> tuple[dict[str, TaskRecord], list[BoostSegment]]:
     with _connection() as connection:
         rows = connection.execute("SELECT * FROM tasks").fetchall()
