@@ -117,9 +117,11 @@ def dashboard_context(
         for view in views
         if view["finish_at"] is not None and view["finish_at"] > now
     ]
+    builder_slots = [view for view in views if view["definition"].group == "builder"]
+    builder_slots.sort(key=lambda view: (view["finish_at"] is None, view["finish_at"]))
     return {
         "now": now,
-        "builder_slots": [view for view in views if view["definition"].group == "builder"],
+        "builder_slots": builder_slots,
         "research_slots": [view for view in views if view["definition"].group == "research"],
         "boosts": BOOST_LIST,
         "has_active_boost": any(view["active_boost"] for view in views),
