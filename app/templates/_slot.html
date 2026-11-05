@@ -1,0 +1,43 @@
+<article class="slot-card {% if slot.completed %}is-complete{% endif %}">
+  <div class="card-topline">
+    <span class="slot-index">{{ slot.definition.label }}</span>
+    <span class="status-pill {% if slot.completed %}done{% elif slot.task %}running{% endif %}">
+      {% if slot.completed %}已完成{% elif slot.task %}进行中{% else %}待录入{% endif %}
+    </span>
+  </div>
+  <h3>{{ slot.task.name if slot.task and slot.task.name else slot.definition.label }}</h3>
+  {% if slot.task %}
+    <div class="result">
+      <span>预计完成</span>
+      <strong>{{ slot.finish_at | local_time }}</strong>
+      <small data-countdown data-finish-at="{{ slot.finish_at.isoformat() }}">
+        {% if slot.completed %}已完成{% else %}计算中…{% endif %}
+      </small>
+    </div>
+    <p class="snapshot">录入于 {{ slot.task.anchor_at | short_time }} · 当时游戏显示 {{ slot.task.remaining_seconds | game_duration }}</p>
+  {% else %}
+    <div class="result empty-result"><span>预计完成</span><strong>录入剩余时间后显示</strong></div>
+  {% endif %}
+  {% if slot.active_boost %}
+    <p class="boost-badge" data-boost-end="{{ slot.active_boost.ends_at.isoformat() }}">⚡ {{ slot.active_boost_name }} {{ slot.active_boost_multiplier }}× · 至 {{ slot.active_boost.ends_at | short_time }}</p>
+  {% endif %}
+  <form class="task-form" action="/tasks/{{ slot.definition.key }}" method="post" hx-post="/tasks/{{ slot.definition.key }}" hx-target="#dashboard" hx-swap="outerHTML">
+    <label class="name-field">
+      <span>项目名称 <em>可选</em></span>
+      <input type="text" name="name" maxlength="60" value="{{ slot.task.name if slot.task else '' }}" placeholder="例如：法师塔升级">
+    </label>
+    <div class="duration-fields" role="group" aria-label="{{ slot.definition.label }}游戏显示的剩余时间">
+      <label><span>天</span><input type="number" name="days" min="0" max="3650" inputmode="numeric" placeholder="0"></label>
+      <label><span>小时</span><input type="number" name="hours" min="0" max="23" inputmode="numeric" placeholder="0"></label>
+      <label><span>分钟</span><input type="number" name="minutes" min="0" max="59" inputmode="numeric" placeholder="0"></label>
+      <label><span>秒</span><input type="number" name="seconds" min="0" max="59" inputmode="numeric" placeholder="0"></label>
+    </div>
+    {% if slot_errors.get(slot.definition.key) %}<p class="field-error" role="alert">{{ slot_errors[slot.definition.key] }}</p>{% endif %}
+    <button class="secondary-button" type="submit">{% if slot.task %}更新倒计时{% else %}计算完成时间{% endif %}</button>
+  </form>
+  {% if slot.task %}
+    <form action="/tasks/{{ slot.definition.key }}/clear" method="post" hx-post="/tasks/{{ slot.definition.key }}/clear" hx-target="#dashboard" hx-swap="outerHTML">
+      <button class="text-button" type="submit">清空这个位置</button>
+    </form>
+  {% endif %}
+</article>

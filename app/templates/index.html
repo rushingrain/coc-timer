@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>部落冲突时间计算器</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}">
+  <script defer src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+  <script defer src="{{ url_for('static', path='/app.js') }}"></script>
+</head>
+<body>
+  <main class="page-shell">
+    <header class="site-header">
+      <div class="brand-mark" aria-hidden="true">⌛</div>
+      <div>
+        <p class="eyebrow">CLASH OF CLANS · FAN TOOL</p>
+        <h1>部落冲突时间计算器</h1>
+        <p class="intro">记录游戏里的剩余时间，算清建筑与研究什么时候结束。</p>
+      </div>
+    </header>
+    {% include "_dashboard.html" %}
+    <footer class="site-footer">当前按北京时间显示 · 道具只计算录入后的加速 · 此工具与游戏官方无关联</footer>
+  </main>
+</body>
+</html>
