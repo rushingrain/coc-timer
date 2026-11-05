@@ -35,12 +35,13 @@ fan-made tool for Clash of Clans
     sudo systemctl daemon-reload
     sudo systemctl enable --now coc-timer
 
-systemd 会自动创建服务所需的数据目录，并在开机时启动服务。生产启动脚本使用单个 Uvicorn 进程、监听本机 127.0.0.1:8000，不使用开发模式的自动重载。要从公网访问，应在前面配置反向代理和访问控制；当前单人版本尚无登录功能，不宜直接暴露 8000 端口。
+systemd 会自动创建服务所需的数据目录，并在开机时启动服务。生产启动脚本使用单个 Uvicorn 进程、监听所有网卡的 8000 端口，不使用开发模式的自动重载。服务器和云平台防火墙放行 TCP 8000 后，可以通过公网 IP 加端口访问。当前单人版本尚无登录功能，建议在云平台安全组中把 8000 的来源限制为自己的 IP；如需长期公开访问，应先加入认证与 HTTPS。
 
 日常管理与检查：
 
     systemctl is-active coc-timer                 # 快速查看是否运行，正常输出 active
     systemctl status coc-timer --no-pager         # 查看进程状态和最近日志
+    sudo ss -lntp | grep ':8000'                  # 确认监听地址为 0.0.0.0:8000
     curl -fsS http://127.0.0.1:8000/healthz       # 检查应用和数据库是否可访问
     sudo systemctl restart coc-timer              # 更新代码后重启
     sudo systemctl stop coc-timer                 # 停止服务
@@ -49,6 +50,8 @@ systemd 会自动创建服务所需的数据目录，并在开机时启动服务
     journalctl -u coc-timer -f                    # 实时跟踪日志
 
 若修改了服务配置文件，需重新执行 sudo install -m 644 deploy/coc-timer.service /etc/systemd/system/coc-timer.service 和 sudo systemctl daemon-reload，再重启服务。若修改了项目依赖，先在服务器运行 .venv/bin/python -m pip install -e .，再重启服务。
+
+如果本机健康检查成功但公网仍不可达，先确认服务器上已更新 deploy/start.sh 并执行 sudo systemctl restart coc-timer，再检查监听地址和云平台安全组。若公网请求返回 HTTP 502，说明请求可能经过云平台网关或客户端代理；可从另一台机器使用 curl --noproxy '*' -i http://公网IP:8000/healthz 排查实际响应来源。
 
 ## 使用方法
 
