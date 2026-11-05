@@ -20,7 +20,7 @@
   <section class="block" aria-labelledby="builders-heading">
     <div class="block-heading">
       <div>
-        <p class="eyebrow">BUILDERS</p>
+        <p class="eyebrow">BUILDINGS</p>
         <h2 id="builders-heading">建筑工人</h2>
       </div>
       <p>建筑类道具同时作用于全部 6 个工人</p>
@@ -33,7 +33,7 @@
   <section class="block" aria-labelledby="research-heading">
     <div class="block-heading">
       <div>
-        <p class="eyebrow">RESEARCH</p>
+        <p class="eyebrow">RESEARCHS</p>
         <h2 id="research-heading">研究</h2>
       </div>
       <p>技能与战宠分别计时，可同时进行</p>
@@ -52,28 +52,34 @@
       <p>同种延长 1 小时，异种覆盖相同位置的当前效果</p>
     </div>
     <form class="boost-form" action="/boosts" method="post" hx-post="/boosts" hx-target="#dashboard" hx-swap="outerHTML">
-      <label>
+      <label class="boost-select-field">
         <span>选择道具</span>
-        <select name="kind" required>
-          <option value="">请选择道具</option>
-          <optgroup label="建筑工人">
-            {% for boost in boosts if boost.slots[0].startswith('builder_') %}
-              <option value="{{ boost.key }}">{{ boost.label }} · {{ boost.multiplier }}×</option>
-            {% endfor %}
-          </optgroup>
-          <optgroup label="研究">
-            {% for boost in boosts if not boost.slots[0].startswith('builder_') %}
-              <option value="{{ boost.key }}">{{ boost.label }} · {{ boost.multiplier }}×</option>
-            {% endfor %}
-          </optgroup>
-        </select>
+        <span class="boost-select-wrap">
+          <span class="boost-select-mark" aria-hidden="true">✦</span>
+          <select name="kind" required>
+            <option value="">请选择道具</option>
+            <optgroup label="建筑工人">
+              {% for boost in boosts if boost.slots[0].startswith('builder_') %}
+                <option value="{{ boost.key }}">{{ boost.label }} · {{ boost.multiplier }}×</option>
+              {% endfor %}
+            </optgroup>
+            <optgroup label="研究">
+              {% for boost in boosts if not boost.slots[0].startswith('builder_') %}
+                <option value="{{ boost.key }}">{{ boost.label }} · {{ boost.multiplier }}×</option>
+              {% endfor %}
+            </optgroup>
+          </select>
+        </span>
       </label>
-      <label>
+      <label class="boost-select-field boost-mode-field">
         <span>操作</span>
-        <select name="mode" data-boost-mode>
-          <option value="use">现在使用一份（60 分钟）</option>
-          <option value="sync">同步游戏中已生效的道具</option>
-        </select>
+        <span class="boost-select-wrap">
+          <span class="boost-select-mark" aria-hidden="true">↻</span>
+          <select name="mode" data-boost-mode>
+            <option value="use">现在使用一份（60 分钟）</option>
+            <option value="sync">同步游戏中已生效的道具</option>
+          </select>
+        </span>
       </label>
       <div class="boost-minutes" data-sync-field>
         <label><span>剩余分钟</span><input name="remaining_minutes" type="number" min="0" max="10080" value="60" inputmode="numeric"></label>
