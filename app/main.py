@@ -14,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 from .domain import (
     BOOST_LIST,
     BOOSTS,
+    BUILDER_SLOTS,
     SLOT_LIST,
     SLOTS,
     BoostSegment,
@@ -25,8 +26,10 @@ from .repository import (
     clear_task,
     check_db,
     init_db,
+    read_builder_order,
     read_state,
     record_boost,
+    save_builder_order,
     save_task,
 )
 
@@ -151,11 +154,12 @@ def dashboard_context(
         for view in views
         if view["finish_at"] is not None and view["finish_at"] > now
     ]
-    builder_slots = [view for view in views if view["definition"].group == "builder"]
-    builder_slots.sort(key=lambda view: (view["finish_at"] is None, view["finish_at"]))
+    views_by_slot = {view["definition"].key: view for view in views}
     return {
         "now": now,
-        "builder_slots": builder_slots,
+        "builder_slots": [
+            views_by_slot[slot] for slot in read_builder_order()
+        ],
         "research_slots": [view for view in views if view["definition"].group == "research"],
         "boosts": BOOST_LIST,
         "has_active_boost": any(view["active_boost"] for view in views),
@@ -196,7 +200,7 @@ def render_dashboard(
     )
 
 
-def after_change(request: Request, message: str) -> Response:
+def after_change(request: Request, message: str | None = None) -> Response:
     if request.headers.get("HX-Request", "").lower() == "true":
         return render_dashboard(request, message=message)
     return RedirectResponse(url="/", status_code=303)
@@ -245,6 +249,28 @@ def dashboard(request: Request) -> HTMLResponse:
     )
 
 
+@app.post("/builders/sort", response_class=HTMLResponse)
+def sort_builders(request: Request) -> Response:
+    now = datetime.now(timezone.utc)
+    tasks, segments = read_state(now)
+    by_slot: dict[str, list[BoostSegment]] = {slot: [] for slot in BUILDER_SLOTS}
+    for segment in segments:
+        if segment.slot in by_slot:
+            by_slot[segment.slot].append(segment)
+
+    def finish_key(slot: str) -> tuple[bool, datetime, str]:
+        task = tasks.get(slot)
+        finish_at = (
+            calculate_finish(task.anchor_at, task.remaining_seconds, by_slot[slot])
+            if task is not None
+            else None
+        )
+        return finish_at is None, finish_at or datetime.max.replace(tzinfo=timezone.utc), slot
+
+    save_builder_order(sorted(BUILDER_SLOTS, key=finish_key))
+    return after_change(request)
+
+
 @app.post("/tasks/{slot}", response_class=HTMLResponse)
 def update_task(
     request: Request,
@@ -265,7 +291,7 @@ def update_task(
         return render_dashboard(request, slot_errors={slot: str(error)})
 
     save_task(slot, name.strip(), remaining_seconds, datetime.now(timezone.utc))
-    return after_change(request, f"已更新{SLOTS[slot].label}的完成时间。")
+    return after_change(request)
 
 
 @app.post("/tasks/{slot}/clear", response_class=HTMLResponse)
