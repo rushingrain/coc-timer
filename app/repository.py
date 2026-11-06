@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterator
 
-from .domain import BOOST_DURATION, BOOSTS, BoostSegment, SLOTS
+from .domain import BOOST_DURATION, BOOSTS, BUILDER_SLOTS, BoostSegment, SLOTS
 
 
 DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / "data" / "coc_timer.sqlite3"
@@ -62,7 +62,15 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS boost_segments_slot_end
                 ON boost_segments (slot, ends_at);
+            CREATE TABLE IF NOT EXISTS builder_slot_order (
+                slot TEXT PRIMARY KEY,
+                position INTEGER NOT NULL UNIQUE
+            );
             """
+        )
+        connection.executemany(
+            "INSERT OR IGNORE INTO builder_slot_order (slot, position) VALUES (?, ?)",
+            [(slot, position) for position, slot in enumerate(BUILDER_SLOTS)],
         )
         connection.commit()
 
@@ -70,6 +78,32 @@ def init_db() -> None:
 def check_db() -> None:
     with _connection() as connection:
         connection.execute("SELECT 1 FROM tasks LIMIT 1").fetchone()
+
+
+def read_builder_order() -> list[str]:
+    with _connection() as connection:
+        rows = connection.execute(
+            "SELECT slot FROM builder_slot_order ORDER BY position"
+        ).fetchall()
+    saved_order = [row["slot"] for row in rows if row["slot"] in BUILDER_SLOTS]
+    return saved_order + [slot for slot in BUILDER_SLOTS if slot not in saved_order]
+
+
+def save_builder_order(order: list[str]) -> None:
+    if len(order) != len(BUILDER_SLOTS) or set(order) != set(BUILDER_SLOTS):
+        raise ValueError("invalid builder order")
+    with _connection() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        try:
+            connection.execute("DELETE FROM builder_slot_order")
+            connection.executemany(
+                "INSERT INTO builder_slot_order (slot, position) VALUES (?, ?)",
+                [(slot, position) for position, slot in enumerate(order)],
+            )
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
 
 
 def read_state(now: datetime) -> tuple[dict[str, TaskRecord], list[BoostSegment]]:
