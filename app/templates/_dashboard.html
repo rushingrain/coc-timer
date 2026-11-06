@@ -1,4 +1,4 @@
-<div id="dashboard" data-server-now="{{ now.isoformat() }}">
+<div id="dashboard" hx-ext="morph" data-server-now="{{ now.isoformat() }}">
   {% if message %}<div class="notice success" role="status">{{ message }}</div>{% endif %}
   <section class="summary" aria-label="总览">
     <div class="summary-main">
@@ -24,7 +24,7 @@
         <h2 id="builders-heading">建筑工人</h2>
       </div>
       <p>建筑类道具同时作用于全部 6 个工人</p>
-      <form class="sort-control-form" action="/builders/sort" method="post" hx-post="/builders/sort" hx-target="#dashboard" hx-swap="outerHTML">
+      <form class="sort-control-form" action="/builders/sort" method="post" hx-post="/builders/sort" hx-target="#dashboard" hx-swap="morph:outerHTML">
         <button class="sort-button" type="submit">按完成时刻排序</button>
       </form>
     </div>
@@ -54,7 +54,7 @@
       </div>
       <p>同种延长 1 小时，异种覆盖相同位置的当前效果</p>
     </div>
-    <form class="boost-form" action="/boosts" method="post" hx-post="/boosts" hx-target="#dashboard" hx-swap="outerHTML">
+    <form class="boost-form" action="/boosts" method="post" hx-post="/boosts" hx-target="#dashboard" hx-swap="morph:outerHTML">
       <label class="boost-select-field">
         <span>选择道具</span>
         <span class="boost-select-wrap">
@@ -93,7 +93,7 @@
     {% if boost_error %}<p class="field-error" role="alert">{{ boost_error }}</p>{% endif %}
     <p class="form-hint">先在游戏中使用道具，再在这里记录。若道具已生效，请先同步其当前剩余分钟和秒数，再录入任务倒计时。</p>
     {% if has_active_boost %}
-      <form data-clear-boosts-form action="/boosts/clear" method="post" hx-post="/boosts/clear" hx-target="#dashboard" hx-swap="outerHTML">
+      <form data-clear-boosts-form action="/boosts/clear" method="post" hx-post="/boosts/clear" hx-target="#dashboard" hx-swap="morph:outerHTML">
         <button class="text-button" type="submit">停止记录当前全部加速</button>
       </form>
     {% endif %}

@@ -1,9 +1,13 @@
-<article class="slot-card {% if slot.completed %}is-complete{% endif %}">
+<article id="slot-{{ slot.definition.key }}" class="slot-card {% if slot.completed %}is-complete{% endif %}">
   <div class="card-topline">
     <span class="slot-index">{{ slot.definition.label }}</span>
-    <span class="status-pill {% if slot.completed %}done{% elif slot.task %}running{% endif %}">
-      {% if slot.completed %}已完成{% elif slot.task %}进行中{% else %}待录入{% endif %}
-    </span>
+    <div class="card-statuses">
+      <span class="finish-notice night" data-finish-notice="night" {% if slot.finish_window != 'night' %}hidden{% endif %}>夜间完成</span>
+      <span class="finish-notice today" data-finish-notice="today" {% if slot.finish_window != 'today' %}hidden{% endif %}>今日完成</span>
+      <span class="status-pill {% if slot.completed %}done{% elif slot.task %}running{% endif %}">
+        {% if slot.completed %}已完成{% elif slot.task %}进行中{% else %}待录入{% endif %}
+      </span>
+    </div>
   </div>
   <h3>{{ slot.task.name if slot.task and slot.task.name else slot.definition.label }}</h3>
   {% if slot.task %}
@@ -21,7 +25,7 @@
   {% if slot.active_boost %}
     <p class="boost-badge" data-boost-end="{{ slot.active_boost.ends_at.isoformat() }}">⚡ {{ slot.active_boost_name }} {{ slot.active_boost_multiplier }}× · 至 {{ slot.active_boost.ends_at | short_time }}</p>
   {% endif %}
-  <form class="task-form" action="/tasks/{{ slot.definition.key }}" method="post" hx-post="/tasks/{{ slot.definition.key }}" hx-target="#dashboard" hx-swap="outerHTML">
+  <form class="task-form" action="/tasks/{{ slot.definition.key }}" method="post" hx-post="/tasks/{{ slot.definition.key }}" hx-target="#dashboard" hx-swap="morph:outerHTML focus-scroll:false">
     <label class="name-field">
       <span>项目名称 <em>可选</em></span>
       <input type="text" name="name" maxlength="60" value="{{ slot.task.name if slot.task else '' }}" placeholder="例如：法师塔升级">
@@ -36,7 +40,7 @@
     <button class="secondary-button" type="submit">{% if slot.task %}更新倒计时{% else %}计算完成时间{% endif %}</button>
   </form>
   {% if slot.task %}
-    <form action="/tasks/{{ slot.definition.key }}/clear" method="post" hx-post="/tasks/{{ slot.definition.key }}/clear" hx-target="#dashboard" hx-swap="outerHTML">
+    <form action="/tasks/{{ slot.definition.key }}/clear" method="post" hx-post="/tasks/{{ slot.definition.key }}/clear" hx-target="#dashboard" hx-swap="morph:outerHTML focus-scroll:false">
       <button class="text-button" type="submit">清空这个位置</button>
     </form>
   {% endif %}

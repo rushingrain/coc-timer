@@ -57,6 +57,17 @@ def short_time(value: datetime) -> str:
     return value.astimezone(DISPLAY_ZONE).strftime("%m-%d %H:%M:%S")
 
 
+def finish_window(finish_at: datetime | None, now: datetime) -> str | None:
+    if finish_at is None or finish_at <= now:
+        return None
+    local_finish = finish_at.astimezone(DISPLAY_ZONE)
+    if local_finish.hour >= 23 or local_finish.hour < 7:
+        return "night"
+    if local_finish.date() == now.astimezone(DISPLAY_ZONE).date():
+        return "today"
+    return None
+
+
 def game_duration(seconds: int) -> str:
     days, rem = divmod(seconds, 86_400)
     hours, rem = divmod(rem, 3_600)
@@ -125,6 +136,7 @@ def dashboard_context(
                 "definition": definition,
                 "task": task,
                 "finish_at": finish_at,
+                "finish_window": finish_window(finish_at, now),
                 "game_remaining_seconds": game_remaining,
                 "game_clock": {
                     "remaining_ms": game_remaining * 1000,

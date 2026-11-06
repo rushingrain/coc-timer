@@ -1,5 +1,6 @@
 (() => {
   let pendingForms = null;
+  let pendingScroll = null;
   const dashboardClocks = new WeakMap();
   const gameClocks = new WeakMap();
   const clockFormatter = new Intl.DateTimeFormat("zh-CN", {
@@ -41,8 +42,8 @@
   function dashboardNow() {
     const dashboard = document.getElementById("dashboard");
     if (!dashboard) return Date.now();
-    if (!dashboardClocks.has(dashboard)) {
-      const serverNow = Date.parse(dashboard.dataset.serverNow);
+    const serverNow = Date.parse(dashboard.dataset.serverNow);
+    if (!dashboardClocks.has(dashboard) || dashboardClocks.get(dashboard).serverNow !== serverNow) {
       dashboardClocks.set(dashboard, {
         serverNow: Number.isNaN(serverNow) ? Date.now() : serverNow,
         startedAt: performance.now(),
@@ -53,8 +54,9 @@
   }
 
   function gameRemaining(element, now) {
-    if (!gameClocks.has(element)) {
+    if (!gameClocks.has(element) || gameClocks.get(element).source !== element.dataset.gameClock) {
       const clock = JSON.parse(element.dataset.gameClock);
+      clock.source = element.dataset.gameClock;
       clock.anchorAt = Date.parse(element.closest("#dashboard").dataset.serverNow);
       clock.boosts = clock.boosts.map((boost) => ({
         startsAt: Date.parse(boost.starts_at),
@@ -72,15 +74,29 @@
     return Math.max(0, remaining);
   }
 
-  function formatChinaTime(milliseconds) {
-    const pieces = Object.fromEntries(
+  function chinaTimeParts(milliseconds) {
+    return Object.fromEntries(
       clockFormatter.formatToParts(new Date(milliseconds)).map((part) => [part.type, part.value]),
     );
+  }
+
+  function formatChinaTime(milliseconds) {
+    const pieces = chinaTimeParts(milliseconds);
     return pieces.year + "-" + pieces.month + "-" + pieces.day + " " + pieces.hour + ":" + pieces.minute + ":" + pieces.second;
+  }
+
+  function finishWindow(finishAt, now, today) {
+    if (finishAt <= now) return null;
+    const finish = chinaTimeParts(finishAt);
+    const hour = Number(finish.hour);
+    if (hour >= 23 || hour < 7) return "night";
+    if (finish.year === today.year && finish.month === today.month && finish.day === today.day) return "today";
+    return null;
   }
 
   function tick() {
     const now = dashboardNow();
+    const today = chinaTimeParts(now);
     document.querySelectorAll("[data-game-countdown]").forEach((element) => {
       element.textContent = formatGameDuration(gameRemaining(element, now));
     });
@@ -89,10 +105,14 @@
       const finishAt = Date.parse(element.dataset.finishAt);
       if (!Number.isNaN(finishAt)) {
         element.textContent = formatCountdown(finishAt - now);
+        const card = element.closest(".slot-card");
+        const completionWindow = finishWindow(finishAt, now, today);
+        card.querySelectorAll("[data-finish-notice]").forEach((notice) => {
+          notice.hidden = notice.dataset.finishNotice !== completionWindow;
+        });
         if (finishAt > now) {
           upcoming.push(finishAt);
         } else {
-          const card = element.closest(".slot-card");
           const pill = card.querySelector(".status-pill");
           card.classList.add("is-complete");
           pill.classList.remove("running");
@@ -130,6 +150,12 @@
 
   function captureForms(sourceForm) {
     const sourceAction = sourceForm ? sourceForm.getAttribute("action") : "";
+    const sourceCard = sourceForm ? sourceForm.closest(".slot-card") : null;
+    const scrollState = {
+      top: window.scrollY,
+      cardAction: sourceCard ? sourceCard.querySelector(".task-form").getAttribute("action") : null,
+      cardTop: sourceCard ? sourceCard.getBoundingClientRect().top : null,
+    };
     const clearedSlot = sourceAction.match(/^\/tasks\/([^/]+)\/clear$/);
     const taskForms = Array.from(document.querySelectorAll(".task-form"))
       .filter((form) => !clearedSlot || form.getAttribute("action") !== "/tasks/" + clearedSlot[1])
@@ -141,11 +167,12 @@
     const boostValues = boostForm
       ? Object.fromEntries(Array.from(boostForm.querySelectorAll("select[name], input[name]")).map((input) => [input.name, input.value]))
       : null;
-    pendingForms = { taskForms, boostValues, submittedAction: sourceAction };
+    pendingForms = { taskForms, boostValues, submittedAction: sourceAction, scrollState };
   }
 
   function restoreForms() {
     if (!pendingForms) return;
+    const scrollState = pendingForms.scrollState;
     document.querySelectorAll(".task-form").forEach((form) => {
       const action = form.getAttribute("action");
       const saved = pendingForms.taskForms.find((item) => item.action === action);
@@ -161,7 +188,21 @@
         input.value = pendingForms.boostValues[input.name] ?? input.value;
       });
     }
+    pendingScroll = scrollState;
     pendingForms = null;
+  }
+
+  function restoreScroll() {
+    if (!pendingScroll) return;
+    const scrollState = pendingScroll;
+    pendingScroll = null;
+    window.requestAnimationFrame(() => {
+      const cardForm = scrollState.cardAction && Array.from(document.querySelectorAll(".task-form"))
+        .find((form) => form.getAttribute("action") === scrollState.cardAction);
+      const card = cardForm && cardForm.closest(".slot-card");
+      const top = card ? scrollState.top + card.getBoundingClientRect().top - scrollState.cardTop : scrollState.top;
+      window.scrollTo(window.scrollX, top);
+    });
   }
 
   document.addEventListener("change", (event) => {
@@ -177,6 +218,7 @@
     syncBoostMode();
     tick();
   });
+  document.addEventListener("htmx:afterSettle", restoreScroll);
   syncBoostMode();
   tick();
   window.setInterval(tick, 1000);
